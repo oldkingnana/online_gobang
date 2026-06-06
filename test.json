@@ -1,0 +1,47 @@
+{
+	"HTTP": {
+		"req": {
+			"username": "oldking", 
+			"password": "123"
+		}, 
+		"res": {
+			"code": 0,
+			"msg": "登陆成功", 
+			"data": {
+				"uid": 10086,
+				"username": "oldking", 
+				"score": 1500
+			}
+		}
+	}, 
+	
+	"WebSocket": {
+		"req": {
+			"room_id": 1001, 
+			"req_type": "chess", 
+			
+			"row": 5, 
+			"col": 2, 
+
+			"payload": "text"
+		}, 
+		"res": {
+			"room_id": 1001, 
+			"uid": 10086, 
+			
+			"result": "gameover", 
+			"row": 5, 
+			"col": 2, 
+			"color": "black", 
+			"next_player": 10087, 
+			"winner": 10086,
+			"info": "how to win?", 
+
+			"payload": "chat", 
+
+			"is_error": true
+		}
+	}
+}
+
+

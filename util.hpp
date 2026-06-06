@@ -1,0 +1,255 @@
+#pragma once
+
+#include <vector>
+#include <string>
+#include <fstream>
+#include <sstream>
+#include <mysql/mysql.h>
+#include <jsoncpp/json/json.h>
+#include "myeasylog.hpp" // 引入你的手搓日志类
+
+
+#ifndef UTIL_LOG
+#define UTIL_LOG(level, msg) \
+    do { \
+        std::stringstream ss; \
+        ss << msg; \
+        oldking::MyEasyLog::GetInstance().WriteLog(level, __FILE__, ss.str()); \
+    } while (0)
+#endif
+
+namespace oldking
+{
+	class file_util 
+	{
+	public:
+	    static bool read(const std::string &filename, std::string &body) 
+		{
+	        std::ifstream file;
+	        
+	        // 以只读,二进制方式打开文件
+	        file.open(filename.c_str(), std::ios::in | std::ios::binary);
+	        if (!file.is_open()) 
+			{
+	            UTIL_LOG(LOG_ERROR, "文件打开失败: " << filename);
+	            return false;
+	        }
+	
+	        // 游标拨到末尾 -> 获取大小 -> 申请内存 -> 游标拨回开头
+	        file.seekg(0, std::ios::end);
+	        body.resize(file.tellg());
+	        file.seekg(0, std::ios::beg);
+	
+	        // 一次性将文件全部读入string的连续内存中
+	        file.read(&body[0], body.size());
+	
+	        // 检查读取过程中是否发生错误
+	        if (!file.good()) 
+			{
+	            UTIL_LOG(LOG_ERROR, "文件读取过程中发生异常: " << filename);
+	            file.close();
+	            return false;
+	        }
+	
+	        file.close();
+	        return true;
+	    }
+
+       	static bool GetFileExten(const std::string& path, std::string& exten)
+        {
+            auto index = path.find(".");
+            if(index == std::string::npos)
+                return false;
+            exten = path.substr(index);
+            return true;
+        }
+	};
+	
+	// 猜测会有线程安全问题(非原子的?),所以对于Json的辅助对象,我们临时申请而不是作为成员变量常驻
+	class json_util
+	{
+	public:
+	    static bool serialize(const Json::Value& src_json, std::string& dst_str)
+	    {
+	        Json::StreamWriterBuilder swb;
+	        // 优化: 去掉格式化缩进和换行,压缩网络传输的体积
+	        swb.settings_["indentation"] = ""; 
+	        
+	        std::unique_ptr<Json::StreamWriter> sw(swb.newStreamWriter());
+	        std::stringstream ss;
+	        
+	        if (sw->write(src_json, &ss) != 0)
+	        {
+	            UTIL_LOG(LOG_ERROR, "JSON序列化失败!");
+	            return false;
+	        }
+	        
+	        dst_str = ss.str();
+	        return true;
+	    }
+	
+	    static bool deserialize(const std::string& src_str, Json::Value& dst_json)
+	    {
+	        Json::CharReaderBuilder crb;
+	        std::unique_ptr<Json::CharReader> cr(crb.newCharReader());
+	        std::string errs;
+	        
+	        if (!cr->parse(src_str.c_str(), src_str.c_str() + src_str.size(), &dst_json, &errs))
+	        {
+	            UTIL_LOG(LOG_ERROR, "JSON反序列化失败! 原因: " << errs);
+	            return false; 
+	        }
+	        
+	        return true; 
+	    }
+	};
+
+	class mysql_util 
+	{
+	public:
+	    static MYSQL* create_mysql(const std::string& host, 
+	               const std::string& user, 
+	               const std::string& pass, 
+	               const std::string& db, 
+	               unsigned int port = 3306) 
+	    {
+	        MYSQL* mfp = mysql_init(nullptr);
+	        if (mfp == nullptr)
+	        {
+	            UTIL_LOG(LOG_ERROR, "MySQL 初始化句柄失败!");
+	        	return nullptr;
+			}
+	
+	        if (!mysql_real_connect(mfp, host.c_str(), user.c_str(), pass.c_str(), 
+	                                db.c_str(), port, nullptr, 0))
+	        {
+	            UTIL_LOG(LOG_ERROR, "MySQL 连接失败! 错误信息: " << mysql_error(mfp));
+	            return nullptr;
+	        }
+	
+	        mysql_set_character_set(mfp, "utf8");
+	        UTIL_LOG(LOG_INFO, "MySQL 连接成功! 数据库: " << db);
+	
+			return mfp;
+	    }
+	
+	    ~mysql_util() 
+	    {}
+	
+	    static bool execute(MYSQL* mfp, const std::string& sql)
+	    {
+	        if (mysql_query(mfp, sql.c_str()))
+	        {
+	            UTIL_LOG(LOG_ERROR, "SQL 执行失败! 错误信息: " << mysql_error(mfp) << " | SQL: " << sql);
+	            return false;
+	        }
+	        return true;
+	    }
+
+		static bool store_line(MYSQL* mfp, std::vector<Json::Value>& usr_data)
+		{
+			MYSQL_RES* res = mysql_store_result(mfp);
+	        
+	        if (res == nullptr)
+	        {
+	            if (mysql_field_count(mfp) == 0) 
+				{
+	                UTIL_LOG(LOG_WARNING, "获取结果集为空! ");
+	                return true;
+	            } 
+				else 
+				{
+	                UTIL_LOG(LOG_ERROR, "获取结果集失败! 错误信息: " << mysql_error(mfp));
+	                return false;
+	            }
+	        }
+	
+	        auto row_num = mysql_num_rows(res);
+	        auto col_num = mysql_num_fields(res);
+	        MYSQL_FIELD* fields = mysql_fetch_fields(res);
+
+			std::vector<std::string> headers;
+	        for(unsigned int i = 0; i < col_num; i++)
+	        {
+	            headers[i] = fields[i].name;
+	        }
+
+			usr_data.resize(row_num);
+
+	        MYSQL_ROW line;
+	        for(unsigned long i = 0; i < row_num; i++)
+	        {
+	            line = mysql_fetch_row(res);
+	            for(unsigned int j = 0; j < col_num; j++)
+	            {
+	                usr_data[i][headers[j]] = line[j];
+	            }
+	        }
+	
+	        mysql_free_result(res);
+
+			return true;
+		}
+
+		void mysql_release(MYSQL* mfp)
+		{
+			if(mfp == nullptr)
+				return ;
+
+			mysql_close(mfp);
+			return ;
+		}
+	};
+
+	// 用于方便拆分用户数据或者其他的以任意分隔符为间隔的数据
+
+	class string_util {
+	public:
+	    // skip_empty用于过滤掉连续分隔符产生的空串
+	    static int split(const std::string &in, const std::string &sep, std::vector<std::string> &arry, bool skip_empty = true) 
+		{
+	        arry.clear();
+	
+	        // 防死循环
+	        if (sep.empty()) 
+			{
+	            arry.push_back(in);
+	            return arry.size();
+	        }
+	
+	        size_t pos, idx = 0;
+	        while(idx < in.size()) 
+			{
+	            pos = in.find(sep, idx);
+	            if (pos == std::string::npos) 
+				{
+	                // 处理最后一段
+	                std::string tail = in.substr(idx);
+	                if (!skip_empty || !tail.empty()) 
+					{
+	                    arry.push_back(tail);
+	                }
+	                break;
+	            }
+	            
+	            // 处理中间切出来的段
+	            if (pos == idx) 
+				{
+	                // 遇到了连续的分隔符
+	                if (!skip_empty) 
+					{
+	                    arry.push_back(""); // 如果不跳过，就塞入空串
+	                }
+	            } 
+				else 
+				{
+	                // 正常切出一段
+	                arry.push_back(in.substr(idx, pos - idx));
+	            }
+	            
+	            idx = pos + sep.size();
+	        }
+	        return arry.size();
+	    }
+	};
+}
