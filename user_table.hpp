@@ -49,6 +49,9 @@ namespace oldking
 
 			oldking::mysql_util::store_line(mfp_, usr_data);
 
+			if(usr_data.empty())
+				return false;
+
 			data = usr_data[0];
 
 			return true;
@@ -65,6 +68,9 @@ namespace oldking
 			std::vector<Json::Value> usr_data;
 
 			oldking::mysql_util::store_line(mfp_, usr_data);
+
+			if(usr_data.empty())
+				return false;
 
 			data = usr_data[0];
 
@@ -85,13 +91,7 @@ namespace oldking
 			// 重复用户检测?
 
 			Json::Value select_result;
-			if(!slct_by_name(data["usr_name"].asString(), select_result))
-			{
-				TABLE_LOG(LOG_ERROR, "查询失败!");
-				return false;
-			}
-
-			if(select_result["usr_name"] == data["usr_name"])
+			if(slct_by_name(data["usr_name"].asString(), select_result))
 			{
 				TABLE_LOG(LOG_ERROR, "用户数据已经存在,用户已经注册!");
 				return false;

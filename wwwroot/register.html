@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册</title>
+
+    <!--<link rel="stylesheet" href="./css/common.css">-->
+    <!--<link rel="stylesheet" href="./css/login.css">-->
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+
+        .nav {
+            margin-bottom: 24px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+        }
+
+        .register-container {
+            width: min(420px, calc(100% - 32px));
+        }
+
+        .register-dialog {
+            background: white;
+            padding: 44px 46px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h3 {
+            margin: 0 0 32px;
+            font-size: 28px;
+            color: #333;
+        }
+
+        .row {
+            margin-bottom: 18px;
+            text-align: left;
+        }
+
+        .row span {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 15px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input {
+            width: 100%;
+            height: 44px;
+            border: 1px solid #d9dce7;
+            border-radius: 5px;
+            padding: 0 12px;
+            font-size: 16px;
+            color: #333;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus {
+            border-color: #28a745;
+            box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.14);
+        }
+
+        #submit {
+            width: 100%;
+            min-height: 46px;
+            margin-top: 10px;
+            padding: 12px 30px;
+            border: 0;
+            border-radius: 5px;
+            background-color: #28a745;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        #submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .login-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #007bff;
+            font-size: 15px;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .login-link:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .nav {
+                font-size: 24px;
+            }
+
+            .register-dialog {
+                padding: 34px 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        网络五子棋对战游戏
+    </div>
+    <div class="register-container">
+        <!-- 注册界面的对话框 -->
+        <div class="register-dialog">
+            <!-- 提示信息 -->
+            <h3>注册</h3>
+            <!-- 这个表示一行 -->
+            <div class="row">
+                <span>用户名</span>
+                <input type="text" id="usr_name">
+            </div>
+            <!-- 这是另一行 -->
+            <div class="row">
+                <span>密码</span>
+                <input type="password" id="passwd">
+            </div>
+            <!-- 再确认一次密码 -->
+            <div class="row">
+                <span>确认密码</span>
+                <input type="password" id="passwd_confirm">
+            </div>
+            <!-- 提交按钮 -->
+            <div class="row">
+                <button id="submit" onclick="register()">提交</button>
+            </div>
+            <a class="login-link" href="./login.html">已有账号，返回登录</a>
+        </div>
+
+    </div>
+
+    <script src="./js/jquery.min.js"></script>
+    <script>
+        //1. 给按钮添加点击事件，调用注册请求函数
+        //2. 封装注册请求函数
+        function register() {
+            //  1. 获取输入框中的用户名和密码，并组织json对象
+            var passwd = document.getElementById("passwd").value;
+            var passwd_confirm = document.getElementById("passwd_confirm").value;
+            if(passwd != passwd_confirm) {
+                alert("两次输入的密码不一致");
+                document.getElementById("passwd").value = "";
+                document.getElementById("passwd_confirm").value = "";
+                return;
+            }
+
+            var register_info = {
+                usr_name: document.getElementById("usr_name").value,
+                passwd: passwd
+            };
+            //  2. 通过ajax向后台发送注册请求
+            $.ajax({
+                url: "/register",
+                type: "post",
+                data: JSON.stringify(register_info),
+                success: function(result) {
+                    //  3. 如果注册通过，则跳转游戏大厅页面
+                    alert("注册成功");
+                    window.location.assign("/hall.html");
+                },
+                error: function(xhr) {
+                    //  4. 如果注册失败，则提示错误信息，并清空密码输入框
+                    alert(JSON.stringify(xhr));
+                    document.getElementById("passwd").value = "";
+                    document.getElementById("passwd_confirm").value = "";
+                }
+            })
+        }
+
+    </script>
+</body>
+</html>

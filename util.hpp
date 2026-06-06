@@ -168,7 +168,7 @@ namespace oldking
 	        auto col_num = mysql_num_fields(res);
 	        MYSQL_FIELD* fields = mysql_fetch_fields(res);
 
-			std::vector<std::string> headers;
+			std::vector<std::string> headers(col_num);
 	        for(unsigned int i = 0; i < col_num; i++)
 	        {
 	            headers[i] = fields[i].name;
