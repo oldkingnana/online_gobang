@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Room</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            min-height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+
+        .nav {
+            padding: 24px 16px 12px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+        }
+
+        .page {
+            width: min(1100px, calc(100% - 32px));
+            margin: 0 auto 28px;
+            display: grid;
+            grid-template-columns: minmax(320px, 620px) minmax(280px, 360px);
+            gap: 22px;
+            align-items: start;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+        }
+
+        h3 {
+            margin: 0 0 18px;
+            font-size: 24px;
+            color: #333;
+        }
+
+        .status {
+            min-height: 22px;
+            margin-bottom: 18px;
+            color: #666;
+            font-size: 15px;
+        }
+
+        .board-wrap {
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 1;
+            margin: 0 auto;
+        }
+
+        .board {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(15, 1fr);
+            grid-template-rows: repeat(15, 1fr);
+            border: 2px solid #8b642d;
+            background-color: #e8c174;
+        }
+
+        .cell {
+            position: relative;
+            border-right: 1px solid rgba(91, 61, 24, 0.45);
+            border-bottom: 1px solid rgba(91, 61, 24, 0.45);
+            cursor: pointer;
+        }
+
+        .cell:nth-child(15n) {
+            border-right: 0;
+        }
+
+        .cell:nth-last-child(-n + 15) {
+            border-bottom: 0;
+        }
+
+        .cell::after {
+            content: "";
+            position: absolute;
+            inset: 18%;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.28);
+            opacity: 0;
+        }
+
+        .cell.black::after {
+            background: #111;
+            opacity: 1;
+        }
+
+        .cell.white::after {
+            background: #f8f8f8;
+            border: 1px solid #bbb;
+            opacity: 1;
+        }
+
+        .info-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid #eef0f6;
+            font-size: 15px;
+        }
+
+        .info-line span:first-child {
+            color: #666;
+        }
+
+        .chat-list {
+            height: 260px;
+            overflow-y: auto;
+            border: 1px solid #d9dce7;
+            border-radius: 5px;
+            padding: 12px;
+            background: #fbfbfd;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .chat-line {
+            margin-bottom: 8px;
+            line-height: 1.45;
+            word-break: break-word;
+        }
+
+        .chat-line.mine {
+            color: #007bff;
+        }
+
+        .chat-line.peer {
+            color: #28a745;
+        }
+
+        input {
+            width: 100%;
+            height: 42px;
+            border: 1px solid #d9dce7;
+            border-radius: 5px;
+            padding: 0 12px;
+            font-size: 15px;
+            color: #333;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.14);
+        }
+
+        .btn {
+            width: 100%;
+            min-height: 44px;
+            margin-top: 10px;
+            padding: 10px 24px;
+            border: 0;
+            border-radius: 5px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-send {
+            background-color: #007bff;
+        }
+
+        .btn-exit {
+            background-color: #dc3545;
+        }
+
+        @media (max-width: 860px) {
+            .page {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">Online Gobang</div>
+    <div class="page">
+        <div class="panel">
+            <h3>Game Room</h3>
+            <div id="status" class="status">Connecting...</div>
+            <div class="board-wrap">
+                <div id="board" class="board"></div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>Room Info</h3>
+            <div class="info-line"><span>Room</span><strong id="room_id">-</strong></div>
+            <div class="info-line"><span>Your Color</span><strong id="my_color">-</strong></div>
+            <div class="info-line"><span>Current Turn</span><strong id="current_player">-</strong></div>
+
+            <h3 style="margin-top: 24px;">Chat</h3>
+            <div id="chat_list" class="chat-list"></div>
+            <input id="chat_input" type="text" placeholder="Message">
+            <button class="btn btn-send" onclick="sendChat()">Send Message</button>
+            <button class="btn btn-exit" onclick="leaveRoom()">Leave Room</button>
+        </div>
+    </div>
+
+    <script>
+        var ws = null;
+        var roomInfo = {};
+        var boardData = [];
+        var gameover = false;
+        var SERVER_HTTP = "http://120.79.179.55:7777";
+        var SERVER_WS = "ws://120.79.179.55:7777/ws";
+
+        function wsUrl() {
+            return SERVER_WS;
+        }
+
+        function setStatus(text) {
+            document.getElementById("status").innerText = text;
+        }
+
+        function colorText(color) {
+            if(color === "black") return "Black";
+            if(color === "white") return "White";
+            return "-";
+        }
+
+        function playerText(uid) {
+            if(!roomInfo || !uid) return "-";
+            if(String(uid) === String(roomInfo.black_id)) return "Black";
+            if(String(uid) === String(roomInfo.white_id)) return "White";
+            return String(uid);
+        }
+
+        function sendJson(data) {
+            if(!ws || ws.readyState !== WebSocket.OPEN) {
+                setStatus("Disconnected");
+                return;
+            }
+            ws.send(JSON.stringify(data));
+        }
+
+        function initBoard() {
+            var board = document.getElementById("board");
+            board.innerHTML = "";
+            for(var row = 0; row < 15; row++) {
+                for(var col = 0; col < 15; col++) {
+                    var cell = document.createElement("div");
+                    cell.className = "cell";
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    cell.onclick = function() {
+                        putChess(Number(this.dataset.row), Number(this.dataset.col));
+                    };
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        function renderBoard() {
+            var cells = document.querySelectorAll(".cell");
+            for(var row = 0; row < 15; row++) {
+                for(var col = 0; col < 15; col++) {
+                    var cell = cells[row * 15 + col];
+                    cell.classList.remove("black", "white");
+                    var value = boardData[row] ? Number(boardData[row][col]) : 0;
+                    if(value === 1) cell.classList.add("black");
+                    if(value === 2) cell.classList.add("white");
+                }
+            }
+        }
+
+        function applyChess(data) {
+            if(!data) return;
+            var row = Number(data.row);
+            var col = Number(data.col);
+            if(!boardData[row]) boardData[row] = [];
+            boardData[row][col] = data.color === "black" ? 1 : 2;
+            renderBoard();
+
+            if(data.result === "gameover") {
+                gameover = true;
+                setStatus(data.info || "Game over");
+            } else {
+                roomInfo.current_player = data.next_player;
+                document.getElementById("current_player").innerText = playerText(data.next_player);
+                setStatus("Waiting for " + playerText(data.next_player));
+            }
+        }
+
+        function applyRoomInfo(data) {
+            roomInfo = data || {};
+            boardData = roomInfo.board || [];
+            document.getElementById("room_id").innerText = roomInfo.room_id || "-";
+            document.getElementById("my_color").innerText = colorText(roomInfo.color);
+            document.getElementById("current_player").innerText = playerText(roomInfo.current_player);
+            renderBoard();
+            setStatus("Room ready, waiting for " + playerText(roomInfo.current_player));
+        }
+
+        function putChess(row, col) {
+            if(gameover) {
+                setStatus("Game already over");
+                return;
+            }
+            sendJson({ req_type: "put_chess", row: row, col: col });
+        }
+
+        function appendChat(text, type) {
+            var chatList = document.getElementById("chat_list");
+            var line = document.createElement("div");
+            line.className = "chat-line " + type;
+            line.innerText = text;
+            chatList.appendChild(line);
+            chatList.scrollTop = chatList.scrollHeight;
+        }
+
+        function sendChat() {
+            var input = document.getElementById("chat_input");
+            var payload = input.value;
+            if(!payload) return;
+            sendJson({ req_type: "room_chat", payload: payload });
+            input.value = "";
+        }
+
+        function leaveRoom() {
+            sendJson({ req_type: "leave_room" });
+            setTimeout(function() {
+                window.location.assign(SERVER_HTTP + "/hall.html");
+            }, 300);
+        }
+
+        function handleMessage(resp) {
+            if(resp.resp_type === "check_room") {
+                if(resp.result) {
+                    applyRoomInfo(resp.data || {});
+                } else {
+                    setStatus(resp.reason || "Room not found");
+                }
+                return;
+            }
+
+            if(resp.resp_type === "put_chess" || resp.resp_type === "peer_put_chess") {
+                if(resp.result) {
+                    applyChess(resp.data || {});
+                } else {
+                    setStatus(resp.reason || "Put chess failed");
+                }
+                return;
+            }
+
+            if(resp.resp_type === "room_chat") {
+                if(resp.result) {
+                    appendChat("Me: " + ((resp.data || {}).payload || ""), "mine");
+                } else {
+                    setStatus(resp.reason || "Send failed");
+                }
+                return;
+            }
+
+            if(resp.resp_type === "peer_room_chat") {
+                appendChat("Peer: " + ((resp.data || {}).payload || ""), "peer");
+                return;
+            }
+
+            if(resp.resp_type === "leave_room") {
+                window.location.assign(SERVER_HTTP + "/hall.html");
+                return;
+            }
+
+            if(resp.resp_type === "peer_leave_room") {
+                gameover = true;
+                setStatus(((resp.data || {}).info) || "Peer left");
+            }
+        }
+
+        function connect() {
+            ws = new WebSocket(wsUrl());
+            ws.onopen = function() {
+                setStatus("Connected, checking room...");
+                sendJson({ req_type: "check_room" });
+            };
+            ws.onmessage = function(event) {
+                handleMessage(JSON.parse(event.data));
+            };
+            ws.onclose = function() {
+                setStatus("Connection closed");
+            };
+            ws.onerror = function() {
+                setStatus("Connection error");
+            };
+        }
+
+        function loadCachedRoomInfo() {
+            var cached = sessionStorage.getItem("room_info");
+            if(cached) {
+                applyRoomInfo(JSON.parse(cached));
+                sessionStorage.removeItem("room_info");
+            }
+        }
+
+        document.getElementById("chat_input").addEventListener("keydown", function(event) {
+            if(event.key === "Enter") {
+                sendChat();
+            }
+        });
+
+        initBoard();
+        loadCachedRoomInfo();
+        window.onload = connect;
+        window.onbeforeunload = function() {
+            if(ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            }
+        };
+    </script>
+</body>
+</html>

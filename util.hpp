@@ -20,9 +20,12 @@
 
 namespace oldking
 {
+	// file_util 是静态文件读取工具,主要服务于 HttpRouter 的静态资源分发。
+	// 它只负责从磁盘读取文件内容和解析文件扩展名,不理解 HTTP 业务含义。
 	class file_util 
 	{
 	public:
+		// 以二进制方式读取整个文件内容到 body 中,读取失败返回 false。
 	    static bool read(const std::string &filename, std::string &body) 
 		{
 	        std::ifstream file;
@@ -55,6 +58,7 @@ namespace oldking
 	        return true;
 	    }
 
+		// 从路径中提取文件扩展名,例如 /index.html 提取为 .html。
        	static bool GetFileExten(const std::string& path, std::string& exten)
         {
             auto index = path.find(".");
@@ -66,9 +70,12 @@ namespace oldking
 	};
 	
 	// 猜测会有线程安全问题(非原子的?),所以对于Json的辅助对象,我们临时申请而不是作为成员变量常驻
+	// json_util 是 JSON 序列化/反序列化工具,用于 HTTP 和 WebSocket 在字符串与 Json::Value 之间转换。
+	// 它每次调用都创建局部 reader/writer,避免把 JsonCpp 辅助对象作为全局共享状态。
 	class json_util
 	{
 	public:
+		// 将 Json::Value 序列化为紧凑 JSON 字符串。
 	    static bool serialize(const Json::Value& src_json, std::string& dst_str)
 	    {
 	        Json::StreamWriterBuilder swb;
@@ -88,6 +95,7 @@ namespace oldking
 	        return true;
 	    }
 	
+		// 将 JSON 字符串反序列化为 Json::Value,解析失败时记录错误日志。
 	    static bool deserialize(const std::string& src_str, Json::Value& dst_json)
 	    {
 	        Json::CharReaderBuilder crb;
@@ -104,9 +112,12 @@ namespace oldking
 	    }
 	};
 
+	// mysql_util 是 MySQL C API 的轻量封装,负责创建连接、执行 SQL、读取结果集并释放连接。
+	// 它是底层数据库工具,不直接表达用户注册、胜负结算等业务含义;这些含义由 user_table 封装。
 	class mysql_util 
 	{
 	public:
+		// 创建并初始化 MySQL 连接,同时设置字符集为 utf8。
 	    static MYSQL* create_mysql(const std::string& host, 
 	               const std::string& user, 
 	               const std::string& pass, 
@@ -136,6 +147,7 @@ namespace oldking
 	    ~mysql_util() 
 	    {}
 	
+		// 执行一条 SQL 语句,成功返回 true,失败时记录 MySQL 错误。
 	    static bool execute(MYSQL* mfp, const std::string& sql)
 	    {
 	        if (mysql_query(mfp, sql.c_str()))
@@ -146,6 +158,7 @@ namespace oldking
 	        return true;
 	    }
 
+		// 读取最近一次查询产生的结果集,并按列名组织成 Json::Value 数组。
 		static bool store_line(MYSQL* mfp, std::vector<Json::Value>& usr_data)
 		{
 			MYSQL_RES* res = mysql_store_result(mfp);
@@ -191,6 +204,7 @@ namespace oldking
 			return true;
 		}
 
+		// 释放 MySQL 连接句柄。
 		void mysql_release(MYSQL* mfp)
 		{
 			if(mfp == nullptr)
@@ -203,9 +217,11 @@ namespace oldking
 
 	// 用于方便拆分用户数据或者其他的以任意分隔符为间隔的数据
 
+	// string_util 是字符串辅助工具,当前主要用于按分隔符拆分 Cookie 等简单文本。
 	class string_util {
 	public:
 	    // skip_empty用于过滤掉连续分隔符产生的空串
+		// 按指定分隔符拆分字符串,可选择是否跳过空字段。
 	    static int split(const std::string &in, const std::string &sep, std::vector<std::string> &arry, bool skip_empty = true) 
 		{
 	        arry.clear();

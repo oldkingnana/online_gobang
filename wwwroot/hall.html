@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Hall</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+
+        .nav {
+            margin-bottom: 24px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+        }
+
+        .hall-container {
+            width: min(460px, calc(100% - 32px));
+        }
+
+        .hall-dialog {
+            background: white;
+            padding: 44px 46px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h3 {
+            margin: 0 0 24px;
+            font-size: 28px;
+            color: #333;
+        }
+
+        .status {
+            min-height: 24px;
+            margin-bottom: 26px;
+            color: #666;
+            font-size: 15px;
+        }
+
+        .btn {
+            width: 100%;
+            min-height: 46px;
+            margin-top: 12px;
+            padding: 12px 30px;
+            border: 0;
+            border-radius: 5px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-start {
+            background-color: #007bff;
+        }
+
+        .btn-cancel {
+            background-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">Online Gobang</div>
+    <div class="hall-container">
+        <div class="hall-dialog">
+            <h3>Game Hall</h3>
+            <div id="status" class="status">Connecting...</div>
+            <button id="match_start" class="btn btn-start" onclick="startMatch()" disabled>Start Match</button>
+            <button id="match_cancel" class="btn btn-cancel" onclick="cancelMatch()" disabled>Cancel Match</button>
+        </div>
+    </div>
+
+    <script>
+        var ws = null;
+        var matching = false;
+        var checkRoomTimer = null;
+        var SERVER_HTTP = "http://120.79.179.55:7777";
+        var SERVER_WS = "ws://120.79.179.55:7777/ws";
+
+        function wsUrl() {
+            return SERVER_WS;
+        }
+
+        function setStatus(text) {
+            document.getElementById("status").innerText = text;
+        }
+
+        function setButtons(canStart, canCancel) {
+            document.getElementById("match_start").disabled = !canStart;
+            document.getElementById("match_cancel").disabled = !canCancel;
+        }
+
+        function sendJson(data) {
+            if(!ws || ws.readyState !== WebSocket.OPEN) {
+                setStatus("Disconnected");
+                setButtons(false, false);
+                return;
+            }
+            ws.send(JSON.stringify(data));
+        }
+
+        function startMatch() {
+            matching = true;
+            setStatus("Matching...");
+            setButtons(false, true);
+            sendJson({ req_type: "match_start" });
+            startCheckRoom();
+        }
+
+        function cancelMatch() {
+            matching = false;
+            stopCheckRoom();
+            setStatus("Match cancelled");
+            setButtons(true, false);
+            sendJson({ req_type: "match_cancel" });
+        }
+
+        function startCheckRoom() {
+            stopCheckRoom();
+            checkRoomTimer = setInterval(function() {
+                if(matching) {
+                    sendJson({ req_type: "check_room", probe: true });
+                }
+            }, 1200);
+        }
+
+        function stopCheckRoom() {
+            if(checkRoomTimer) {
+                clearInterval(checkRoomTimer);
+                checkRoomTimer = null;
+            }
+        }
+
+        function handleMessage(resp) {
+            if(resp.resp_type === "enter_hall") {
+                if(resp.result) {
+                    setStatus("In hall");
+                    setButtons(true, false);
+                } else {
+                    setStatus(resp.reason || "Enter hall failed");
+                    setButtons(false, false);
+                }
+                return;
+            }
+
+            if(resp.resp_type === "match_start") {
+                if(!resp.result) {
+                    matching = false;
+                    stopCheckRoom();
+                    setStatus(resp.reason || "Match failed");
+                    setButtons(true, false);
+                }
+                return;
+            }
+
+            if(resp.resp_type === "match_cancel") {
+                matching = false;
+                stopCheckRoom();
+                setStatus(resp.result ? "Match cancelled" : (resp.reason || "Cancel failed"));
+                setButtons(true, false);
+                return;
+            }
+
+            if(resp.resp_type === "check_room" && resp.result) {
+                stopCheckRoom();
+                sessionStorage.setItem("room_info", JSON.stringify(resp.data || {}));
+                window.location.assign(SERVER_HTTP + "/room.html");
+            }
+        }
+
+        function connect() {
+            ws = new WebSocket(wsUrl());
+            ws.onopen = function() {
+                setStatus("Connected, entering hall...");
+                sendJson({ req_type: "enter_hall" });
+            };
+            ws.onmessage = function(event) {
+                handleMessage(JSON.parse(event.data));
+            };
+            ws.onclose = function() {
+                stopCheckRoom();
+                setStatus("Connection closed");
+                setButtons(false, false);
+            };
+            ws.onerror = function() {
+                setStatus("Connection error");
+                setButtons(false, false);
+            };
+        }
+
+        window.onload = connect;
+        window.onbeforeunload = function() {
+            stopCheckRoom();
+            if(ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            }
+        };
+    </script>
+</body>
+</html>

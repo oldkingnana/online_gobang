@@ -29,6 +29,10 @@
 namespace oldking
 {
 	// 谁会来访问session?需不需要加锁?
+	// session 描述一个用户在服务端的登录凭证,它和客户端 Cookie 中的 SSID 对应。
+	// 它保存 uid、ssid、登录状态和最后访问时间,用于判断用户是否仍然保持登录态。
+	// login/unlogin 状态不仅描述用户是否登录,也会影响 session 是否允许被删除和是否需要刷新访问时间。
+	// session 本身只保存单个会话的数据和简单状态操作,批量管理、查找、删除由 session_manager 负责。
 	class session 
 	{
 	public:
@@ -42,6 +46,7 @@ namespace oldking
 
 	public:
 	
+		// 创建一个会话对象,记录 ssid、uid、初始状态,并把最后访问时间初始化为当前时间。
 		session(ssid_t ssid, uid_t uid, ss_stat stat)
 		: last_access_time_(time(nullptr))
 		, ssid_(ssid)
@@ -53,6 +58,7 @@ namespace oldking
 			SS_LOG(LOG_INFO, "session[" + ss.str() + "]已创建");
 		}
 
+		// 销毁会话对象时写日志,用于观察 session 生命周期。
 		~session()
 		{
 			// log
@@ -61,12 +67,18 @@ namespace oldking
 			SS_LOG(LOG_INFO, "session[" + ss.str() + "]已销毁");
 		}
 
+		// 获取 session 绑定的用户 uid。
 		uid_t uid() { return uid_; }
+		// 获取下发给客户端 Cookie 的 SSID。
 		ssid_t ssid() { return ssid_; }
 		// void update_ssid(ssid_t new_ssid) { ssid_ = new_ssid; }
+		// 更新 session 登录状态,用于登录/登出等状态切换。
 		void update_stat(ss_stat new_stat) { stat_ = new_stat; }
+		// 判断 session 当前是否处于 login 状态。
 		bool is_login() { return stat_ == ss_stat::login; }
+		// 刷新最后访问时间,用于延长活跃用户的登录态。
 		void update_time() { last_access_time_ = time(nullptr); }
+		// 判断 session 是否超过 SESSION_TIMEOUT。
 		bool is_expired() { return time(nullptr) - last_access_time_ > SESSION_TIMEOUT; }	
 	};
 }
