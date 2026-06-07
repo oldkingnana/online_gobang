@@ -9,7 +9,7 @@ int main()
 {
 	// 创建全局业务组件:session 管理、用户表访问、在线状态、房间管理、匹配器和鉴权过滤器。
 	auto session_manager = std::make_shared<oldking::session_manager>();
-	oldking::user_table user_table("127.0.0.1", "root", "", "Online_Gobang");
+	oldking::user_table user_table("127.0.0.1", "oldking", "Wsc171810", "Online_Gobang");
 	oldking::online_manager online_manager;
 	oldking::room_manager room_manager(&online_manager, &user_table);
 	oldking::matcher matcher(&user_table, &online_manager, &room_manager);

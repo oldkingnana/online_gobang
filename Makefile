@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -o
+CXXFLAGS = -std=c++17 -g -o
 LIBFLAGS = -lpthread -ljsoncpp -lmysqlclient -lboost_system
 DST = server.exe
 SRC = main.cpp 

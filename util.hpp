@@ -59,14 +59,24 @@ namespace oldking
 	    }
 
 		// 从路径中提取文件扩展名,例如 /index.html 提取为 .html。
-       	static bool GetFileExten(const std::string& path, std::string& exten)
-        {
-            auto index = path.find(".");
-            if(index == std::string::npos)
-                return false;
-            exten = path.substr(index);
-            return true;
-        }
+		static bool GetFileExten(const std::string& path, std::string& exten)
+		{
+		    auto query_pos = path.find('?');
+		
+		    std::string real_path =
+		        (query_pos == std::string::npos)
+		        ? path
+		        : path.substr(0, query_pos);
+		
+		    auto dot_pos = real_path.rfind('.');
+		
+		    if(dot_pos == std::string::npos)
+		        return false;
+		
+		    exten = real_path.substr(dot_pos);
+		
+		    return true;
+		}
 	};
 	
 	// 猜测会有线程安全问题(非原子的?),所以对于Json的辅助对象,我们临时申请而不是作为成员变量常驻
@@ -161,47 +171,88 @@ namespace oldking
 		// 读取最近一次查询产生的结果集,并按列名组织成 Json::Value 数组。
 		static bool store_line(MYSQL* mfp, std::vector<Json::Value>& usr_data)
 		{
-			MYSQL_RES* res = mysql_store_result(mfp);
-	        
-	        if (res == nullptr)
-	        {
-	            if (mysql_field_count(mfp) == 0) 
-				{
-	                UTIL_LOG(LOG_WARNING, "获取结果集为空! ");
-	                return true;
-	            } 
-				else 
-				{
-	                UTIL_LOG(LOG_ERROR, "获取结果集失败! 错误信息: " << mysql_error(mfp));
-	                return false;
-	            }
-	        }
-	
-	        auto row_num = mysql_num_rows(res);
-	        auto col_num = mysql_num_fields(res);
-	        MYSQL_FIELD* fields = mysql_fetch_fields(res);
-
-			std::vector<std::string> headers(col_num);
-	        for(unsigned int i = 0; i < col_num; i++)
-	        {
-	            headers[i] = fields[i].name;
-	        }
-
-			usr_data.resize(row_num);
-
-	        MYSQL_ROW line;
-	        for(unsigned long i = 0; i < row_num; i++)
-	        {
-	            line = mysql_fetch_row(res);
-	            for(unsigned int j = 0; j < col_num; j++)
-	            {
-	                usr_data[i][headers[j]] = line[j];
-	            }
-	        }
-	
-	        mysql_free_result(res);
-
-			return true;
+		    MYSQL_RES* res = mysql_store_result(mfp);
+		
+		    if (res == nullptr)
+		    {
+		        if (mysql_field_count(mfp) == 0)
+		        {
+		            UTIL_LOG(LOG_WARNING, "获取结果集为空! ");
+		            return true;
+		        }
+		        else
+		        {
+		            UTIL_LOG(LOG_ERROR, "获取结果集失败! 错误信息: " << mysql_error(mfp));
+		            return false;
+		        }
+		    }
+		
+		    auto row_num = mysql_num_rows(res);
+		    auto col_num = mysql_num_fields(res);
+		    MYSQL_FIELD* fields = mysql_fetch_fields(res);
+		
+		    std::vector<std::string> headers(col_num);
+		    for (unsigned int i = 0; i < col_num; i++)
+		    {
+		        headers[i] = fields[i].name;
+		    }
+		
+		    usr_data.clear();
+		    usr_data.resize(row_num);
+		
+		    MYSQL_ROW line;
+		    unsigned long* lengths = nullptr;
+		
+		    for (unsigned long i = 0; i < row_num; i++)
+		    {
+		        line = mysql_fetch_row(res);
+		        lengths = mysql_fetch_lengths(res);
+		
+		        for (unsigned int j = 0; j < col_num; j++)
+		        {
+		            const std::string& key = headers[j];
+		
+		            if (line[j] == nullptr)
+		            {
+		                usr_data[i][key] = Json::nullValue;
+		                continue;
+		            }
+		
+		            std::string value(line[j], lengths[j]);
+		
+		            switch (fields[j].type)
+		            {
+		                case MYSQL_TYPE_TINY:
+		                case MYSQL_TYPE_SHORT:
+		                case MYSQL_TYPE_LONG:
+		                case MYSQL_TYPE_INT24:
+		                    usr_data[i][key] = std::stoi(value);
+		                    break;
+		
+		                case MYSQL_TYPE_LONGLONG:
+		                    usr_data[i][key] = Json::Int64(std::stoll(value));
+		                    break;
+		
+		                case MYSQL_TYPE_FLOAT:
+		                case MYSQL_TYPE_DOUBLE:
+		                case MYSQL_TYPE_DECIMAL:
+		                case MYSQL_TYPE_NEWDECIMAL:
+		                    usr_data[i][key] = std::stod(value);
+		                    break;
+		
+		                case MYSQL_TYPE_BIT:
+		                    usr_data[i][key] = (value != "0");
+		                    break;
+		
+		                default:
+		                    usr_data[i][key] = value;
+		                    break;
+		            }
+		        }
+		    }
+		
+		    mysql_free_result(res);
+		    return true;
 		}
 
 		// 释放 MySQL 连接句柄。
