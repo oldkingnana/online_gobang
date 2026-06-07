@@ -1,10 +1,10 @@
 #pragma once
 
-#include <websocketpp/server.hpp>
-#include <websocketpp/config/asio_no_tls.hpp>
 #include <unordered_map>
 #include "myeasylog.hpp"
 #include "mutex.hpp" 
+#include "common.hpp"
+#include "net_common.hpp"
 
 #ifndef OL_MNG_LOG
 #define OL_MNG_LOG(level, msg) \
@@ -19,10 +19,6 @@ namespace oldking
 {
     class online_manager
     {
-        typedef websocketpp::server<websocketpp::config::asio> websocket_server;
-        typedef uint64_t uid_t;
-        typedef websocket_server::connection_ptr usr_conn_ptr;
-
     public:
         bool in_hall(uid_t uid)
         {
@@ -37,7 +33,7 @@ namespace oldking
             return game_room_.count(uid) > 0;
         }
 
-        void enter_hall(uid_t uid, usr_conn_ptr conn)
+        void enter_hall(uid_t uid, usr_conn_ptr_t conn)
         {
             oldking::lock_guard lock(mtx_);
             
@@ -65,7 +61,7 @@ namespace oldking
             }
         }
 
-        void enter_room(uid_t uid, usr_conn_ptr conn)
+        void enter_room(uid_t uid, usr_conn_ptr_t conn)
         {
             oldking::lock_guard lock(mtx_);
             
@@ -93,7 +89,7 @@ namespace oldking
             }
         }
 
-        usr_conn_ptr find_from_hall(uid_t uid)
+        usr_conn_ptr_t find_from_hall(uid_t uid)
         {
             oldking::lock_guard lock(mtx_);
             auto it = game_hall_.find(uid);
@@ -101,10 +97,10 @@ namespace oldking
 			{
                 return it->second;
             }
-            return usr_conn_ptr();
+            return usr_conn_ptr_t();
         }
 
-        usr_conn_ptr find_from_room(uid_t uid)
+        usr_conn_ptr_t find_from_room(uid_t uid)
         {
             oldking::lock_guard lock(mtx_);
             auto it = game_room_.find(uid);
@@ -112,13 +108,13 @@ namespace oldking
 			{
                 return it->second;
             }
-            return usr_conn_ptr();
+            return usr_conn_ptr_t();
         }
 
     private:
         oldking::mymutex mtx_; 
-        std::unordered_map<uid_t, usr_conn_ptr> game_hall_;
-        std::unordered_map<uid_t, usr_conn_ptr> game_room_;
+        std::unordered_map<uid_t, usr_conn_ptr_t> game_hall_;
+        std::unordered_map<uid_t, usr_conn_ptr_t> game_room_;
     };
 }
 

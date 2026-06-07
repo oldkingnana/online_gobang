@@ -1,13 +1,12 @@
 #pragma once 
 
-#include <websocketpp/server.hpp>
-#include <websocketpp/config/asio_no_tls.hpp>
 #include <functional>
 #include <memory>
 #include <map>
 
 #include "util.hpp"
 #include "common.hpp"
+#include "net_common.hpp"
 #include "mutex.hpp"
 #include "myeasylog.hpp"
 
@@ -57,11 +56,6 @@ namespace oldking
         class HttpRouter
         {
         private:
-				typedef websocketpp::server<websocketpp::config::asio> ws_server;
-				typedef ws_server::message_ptr msg_ptr; 
-				typedef websocketpp::http::parser::request http_req_t;
-				typedef websocketpp::http::parser::response http_resp_t;
-                
 				std::map<RouterKey, std::function<http_resp_t(const http_req_t&)>, less>func_map_;
 				oldking::mymutex mtx_;
 

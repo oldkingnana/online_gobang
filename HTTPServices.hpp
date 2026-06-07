@@ -1,8 +1,7 @@
-#include <websocketpp/server.hpp>
-#include <websocketpp/config/asio_no_tls.hpp>
 #include <jsoncpp/json/json.h>
 
 #include "util.hpp"
+#include "net_common.hpp"
 #include "user_table.hpp"
 #include "session_manager.hpp"
 
@@ -10,10 +9,6 @@ namespace oldking
 {
 	class HTTPServices
 	{
-	private:
-		typedef websocketpp::http::parser::request http_req_t;
-		typedef websocketpp::http::parser::response http_resp_t;
-
 	public:
 		static http_resp_t s_login(oldking::session_manager* smp, oldking::user_table* utp, const http_req_t& req)
 		{

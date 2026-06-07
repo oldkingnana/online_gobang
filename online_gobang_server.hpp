@@ -8,6 +8,7 @@
 #include "matcher.hpp"
 #include "util.hpp"
 #include "HTTPRouter.hpp"
+#include "net_common.hpp"
 
 #ifndef SERVER_LOG
 #define SERVER_LOG(level, msg) \
@@ -23,19 +24,14 @@ namespace oldking
 	class online_gobang_server
 	{
 	private:
-		typedef websocketpp::http::parser::request http_req_t;
-		typedef websocketpp::http::parser::response http_resp_t;
-		typedef websocketpp::server<websocketpp::config::asio> ws_server;
-		typedef ws_server::message_ptr msg_ptr; 
-		
-		ws_server server_;
+		ws_server_t server_;
 		oldking::HttpRouter http_router_; // 一定要写一个接口用于给router注册业务代码	
 
 		// 注册函数
-		void OnHttp(websocketpp::connection_hdl hdl) 
+		void OnHttp(conn_hdl_t hdl) 
 		{
 			// 请求接收
-			ws_server::connection_ptr pcon = server_.get_con_from_hdl(hdl);
+			usr_conn_ptr_t pcon = server_.get_con_from_hdl(hdl);
 			http_req_t req = pcon->get_request();
 
 			// 请求路由 + 请求处理
@@ -91,7 +87,7 @@ namespace oldking
 			server_.init_asio();
 
 			// 注册http请求回调函数(太优雅了!)
-			server_.set_http_handler([this](websocketpp::connection_hdl hdl) {
+			server_.set_http_handler([this](conn_hdl_t hdl) {
 				this->OnHttp(hdl);	
 			});
 					

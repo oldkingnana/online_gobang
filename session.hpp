@@ -1,10 +1,9 @@
 #pragma once
 
-#include <websocketpp/server.hpp>
-#include <websocketpp/config/asio_no_tls.hpp>
 #include <iostream>
 
 #include "myeasylog.hpp"
+#include "common.hpp"
 
 #define SESSION_TIMEOUT 30000
 
@@ -37,9 +36,6 @@ namespace oldking
 		time_t last_access_time_; //惰性删除
 	
 	private:
-		typedef std::string ssid_t;
-		typedef uint64_t uid_t;
-
 		ssid_t ssid_;
 		uid_t uid_;
 		ss_stat stat_;

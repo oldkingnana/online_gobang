@@ -1,10 +1,8 @@
 #pragma once
 
-#include <websocketpp/server.hpp>
-#include <websocketpp/config/asio_no_tls.hpp>
-
 #include "mutex.hpp"
 #include "myeasylog.hpp"
+#include "common.hpp"
 #include "user_table.hpp"
 #include "online_manager.hpp"
 
@@ -31,13 +29,6 @@ namespace oldking
 	class room
 	{
 	private:
-		typedef websocketpp::server<websocketpp::config::asio> web_server;
-		typedef web_server::connection_ptr usr_conn;
-
-		typedef uint64_t uid_t; 
-	
-		typedef uint64_t rid_t;
-
 		rid_t room_id_;
 
 		std::vector<std::vector<int>> board_;

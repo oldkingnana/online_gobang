@@ -6,6 +6,7 @@
 #include "room.hpp"
 #include "myeasylog.hpp"
 #include "mutex.hpp"
+#include "common.hpp"
 #include "online_manager.hpp"
 #include "user_table.hpp"
 
@@ -26,8 +27,6 @@ namespace oldking
 	class room_manager
 	{
 	private:
-		typedef uint64_t rid_t;
-		typedef uint64_t uid_t;
 		typedef std::shared_ptr<room> room_ptr;
 		
 		rid_t next_rid_;

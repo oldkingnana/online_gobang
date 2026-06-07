@@ -6,6 +6,7 @@
 #include <thread>
 
 #include "myeasylog.hpp"
+#include "common.hpp"
 #include "user_table.hpp"
 #include "online_manager.hpp"
 #include "room_manager.hpp"
@@ -20,8 +21,6 @@ namespace oldking
 	class matcher
 	{
 	private:
-		typedef uint64_t uid_t;
-
 		std::list<uid_t> level_1_queue_; // point < 1000
 		std::list<uid_t> level_2_queue_; // 1000 <= point < 2000
 		std::list<uid_t> level_3_queue_; // 2000 <= point 

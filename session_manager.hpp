@@ -6,6 +6,7 @@
 #include "session.hpp"
 #include "mutex.hpp"
 #include "myeasylog.hpp"
+#include "common.hpp"
 
 #ifndef SS_MNG_LOG
 #define SS_MNG_LOG(level, msg) \
@@ -24,8 +25,6 @@ namespace oldking
 	{
 	private:
 		typedef std::shared_ptr<session> ss_ptr_t;
-		typedef uint64_t uid_t;
-		typedef std::string ssid_t;
 
 		std::unordered_map<ssid_t, ss_ptr_t> sessions_;
 		std::unordered_map<uid_t, ssid_t> ssids_;

@@ -1,3 +1,6 @@
+#pragma once
+
+#include "common.hpp"
 #include "session_manager.hpp"
 
 namespace oldking 
@@ -8,8 +11,6 @@ namespace oldking
 	
 	struct auth_result 
 	{
-	private:
-		typedef uint64_t uid_t;
 	public:
 		bool ok;
 		uid_t uid;
@@ -20,10 +21,56 @@ namespace oldking
 	class session_detector 
 	{
 	private:
-		typedef uint64_t uid_t;
-		typedef std::string ssid_t;
-
 		std::shared_ptr<session_manager> session_manager_ptr_;
+
+		auth_result check(ssid_t ssid)
+		{
+			auth_result result;
+			result.ok = false;
+			result.uid = 0;
+
+			if(session_manager_ptr_ == nullptr)
+			{
+				result.reason = "session manager is null";
+				return result;
+			}
+
+			if(ssid.empty())
+			{
+				result.reason = "ssid is empty";
+				return result;
+			}
+
+			auto session_ptr = session_manager_ptr_->get_session(ssid);
+			if(session_ptr == nullptr)
+			{
+				result.reason = "session does not exist";
+				return result;
+			}
+
+			if(session_ptr->is_expired())
+			{
+				session_manager_ptr_->rm_session(ssid);
+				result.reason = "session is expired";
+				return result;
+			}
+
+			if(!session_ptr->is_login())
+			{
+				result.reason = "session is not login";
+				return result;
+			}
+
+			if(time(nullptr) - session_ptr->last_access_time_ > (SESSION_TIMEOUT / 2))
+			{
+				session_ptr->update_time();
+			}
+
+			result.ok = true;
+			result.uid = session_ptr->uid();
+			result.reason = "session is valid";
+			return result;
+		}
 	public:
 		session_detector(std::shared_ptr<session_manager> smp)
 		: session_manager_ptr_(smp)
@@ -32,6 +79,7 @@ namespace oldking
 		// 检测session合法性并通过session获取uid
 		auth_result check_http (ssid_t ssid)
 		{
+			return check(ssid);
 			// 在session_manager中检查是否存在对应session
 			// 如果不存在,设置auth_result并返回
 			
@@ -47,7 +95,7 @@ namespace oldking
 		// ws也是几乎一样的逻辑
 		auth_result check_ws (ssid_t ssid)
 		{
-
+			return check(ssid);
 		}
 	};
 }
